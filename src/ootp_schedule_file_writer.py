@@ -10,20 +10,21 @@ def write_schedule_file(settings, s):
     # Sort key copied from the original: the day number and start time joined as text, then parsed.
     all_games.sort(key=lambda g: int(str(g.day.number) + str(g.time)))
 
-    filename = ""
-    filename += "ILY_" if settings.interleague_play else "ILN_"
-    filename += "BGY_" if settings.balanced_schedule else "BGN_"
-    filename += "G" + str(settings.total_games) + "_"
+    prefix = ""
+    prefix += "ILY_" if settings.interleague_play else "ILN_"
+    prefix += "BGY_" if settings.balanced_schedule else "BGN_"
+    prefix += "G" + str(settings.total_games) + "_"
 
     league = settings.league
+    total_teams = "T" + str(len(league.get_teams()))
     if len(league.subleagues) == 1 and len(league.subleagues[0].divisions) == 1:
-        filename += "T" + str(len(league.get_teams()))
+        structure = total_teams
     else:
+        structure = ""
         for i, sl in enumerate(league.subleagues, start=1):
-            filename += "SL" + str(i)
+            structure += "SL" + str(i)
             for j, d in enumerate(sl.divisions, start=1):
-                filename += "D" + str(j) + "T" + str(len(d.teams))
-    filename += "_"
+                structure += "D" + str(j) + "T" + str(len(d.teams))
 
     timestamp = ""
     if settings.use_output_date:
@@ -31,8 +32,12 @@ def write_schedule_file(settings, s):
         # (strftime's %G is not supported on every platform.)
         now = datetime.now()
         timestamp = "%04d" % now.isocalendar()[0] + now.strftime("%m%d%H%M%S")
-    filename += "C_"
-    filename += "autogen" + timestamp + ".lsdl"
+    suffix = "_C_autogen" + timestamp + ".lsdl"
+
+    filename = prefix + structure + suffix
+    # Many divisions overflow Windows' 255-char name / 260-char path limit; fall back to the team count.
+    if len(os.path.abspath(filename)) > 259:
+        filename = prefix + total_teams + suffix
 
     allstar_day = -1
     for g in all_games:
