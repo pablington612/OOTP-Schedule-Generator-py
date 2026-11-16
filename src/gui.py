@@ -20,7 +20,6 @@ DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Satur
 FIELDS = [
     ("general", "interleague", "bool", False),
     ("general", "balanced", "bool", True),
-    ("general", "structure", "text", "SL1_D1_T16"),
     ("schedule", "divisional_games", "text", "60"),
     ("schedule", "subleague_games", "text", "0"),
     ("schedule", "interleague_games", "text", "0"),
@@ -79,6 +78,7 @@ class App:
                 frames[section] = ttk.Frame(tabs, padding=8)
                 tabs.add(frames[section], text=section)
             self._add_field(frames[section], section, key, kind, default)
+        self._add_structure(frames["general"])
 
         bar = ttk.Frame(root, padding=(8, 0))
         bar.pack(fill="x")
@@ -125,6 +125,99 @@ class App:
                 ttk.Checkbutton(box, text=d[:3], variable=var[d]).pack(side="left")
         self.vars[(section, key)] = (kind, var)
 
+    @staticmethod
+    def _int(var):
+        """var's value, or None while the field is blank."""
+        try:
+            return var.get()
+        except tk.TclError:
+            return None
+
+    def _spinbox(self, parent, var, hi):
+        """Typable 1..hi spinbox: digits only, values over hi snap to hi, blank/0 snaps to 1 on leave."""
+        def cap(*_):
+            v = self._int(var)
+            if v is not None and v > hi:
+                var.set(hi)
+
+        def floor(_):
+            v = self._int(var)
+            if v is None or v < 1:
+                var.set(1)
+
+        var.trace_add("write", cap)
+        sb = ttk.Spinbox(parent, from_=1, to=hi, textvariable=var, width=5, validate="key",
+                         validatecommand=(parent.register(lambda p: p == "" or p.isdigit()), "%P"))
+        sb.bind("<FocusOut>", floor)
+        sb.bind("<Return>", floor)
+        return sb
+
+    def _add_structure(self, frame):
+        """Subleague count, divisions per subleague, and per-division team counts (via edit_divisions)."""
+        self.subleagues = tk.IntVar(value=1)
+        self.div_counts = [tk.IntVar(value=1), tk.IntVar(value=1)]
+        self.div_teams = [[tk.IntVar(value=16)], [tk.IntVar(value=4)]]
+        row = frame.grid_size()[1]
+        ttk.Label(frame, text="Subleagues").grid(row=row, column=0, sticky="w", padx=(0, 8), pady=2)
+        self._spinbox(frame, self.subleagues, 2).grid(row=row, column=1, sticky="w")
+        sl_rows = []
+        for i in range(2):
+            widgets = [
+                ttk.Label(frame, text="Divisions in Sub League " + str(i + 1)),
+                self._spinbox(frame, self.div_counts[i], 50),
+                ttk.Button(frame, text="Edit Sub League " + str(i + 1) + " Divisions",
+                           command=lambda i=i: self.edit_divisions(i)),
+            ]
+            for col, w in enumerate(widgets):
+                w.grid(row=row + 1 + i, column=col, sticky="w", padx=(0, 8), pady=2)
+            sl_rows.append(widgets)
+            self.div_counts[i].trace_add("write", lambda *_, i=i: self._resize_divisions(i))
+
+        def show_subleagues(*_):
+            n = self._int(self.subleagues)
+            if n is None or n < 1:
+                return
+            for i, widgets in enumerate(sl_rows):
+                for w in widgets:
+                    w.grid() if i < n else w.grid_remove()
+
+        self.subleagues.trace_add("write", show_subleagues)
+        show_subleagues()
+
+    def _resize_divisions(self, i):
+        teams = self.div_teams[i]
+        n = self._int(self.div_counts[i])
+        if n is None or n < 1:  # mid-edit; floor() will write a valid value
+            return
+        n = min(n, 50)  # cap() clamps the field, but writes made inside a trace don't re-fire traces
+        del teams[n:]
+        teams.extend(tk.IntVar(value=4) for _ in range(n - len(teams)))
+
+    def edit_divisions(self, i):
+        win = tk.Toplevel(self.root)
+        win.title("Sub League " + str(i + 1) + " Divisions")
+        win.transient(self.root)
+        body = ttk.Frame(win, padding=8)
+        body.pack(fill="both", expand=True)
+        for k, var in enumerate(self.div_teams[i]):
+            ttk.Label(body, text="Teams in Division " + str(k + 1)).grid(row=k, column=0, sticky="w",
+                                                                        padx=(0, 8), pady=2)
+            self._spinbox(body, var, 50).grid(row=k, column=1, sticky="w")
+        ttk.Button(body, text="Close", command=win.destroy).grid(row=len(self.div_teams[i]), column=0,
+                                                                 columnspan=2, pady=(8, 0))
+        win.grab_set()
+
+    def structure_string(self):
+        """Builds the "SL1_D1_T4_D2_T4" string Scheduler.generate_league_structure parses."""
+        parts = []
+        div_id = 1
+        for i in range(self._int(self.subleagues) or 1):
+            parts.append("SL" + str(i + 1))
+            for var in self.div_teams[i]:
+                parts.append("D" + str(div_id) + "_T" + str(self._int(var) or 1))
+                div_id += 1
+        return "_".join(parts)
+
     def collect_settings(self):
         """Same shape IniLoader.load() returns: {section: {key: str or list}}."""
         settings = {}
@@ -138,6 +231,7 @@ class App:
             if kind == "day" and value == "none":
                 continue
             settings.setdefault(section, {})[key] = value
+        settings["general"]["structure"] = self.structure_string()
         return settings
 
     def set_buttons(self, busy):
