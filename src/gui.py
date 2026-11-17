@@ -13,6 +13,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from main import team_from_command  # noqa: E402
 from ootp_schedule_file_writer import write_schedule_file  # noqa: E402
 from scheduler import Scheduler  # noqa: E402
+from special_schedules.ucl import run as run_ucl  # noqa: E402
+
+UCL = "UCL Style League Phase"
 
 DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
@@ -79,6 +82,9 @@ class App:
                 tabs.add(frames[section], text=section)
             self._add_field(frames[section], section, key, kind, default)
         self._add_structure(frames["general"])
+        special = ttk.Frame(tabs, padding=8)
+        tabs.add(special, text="Special Schedules")
+        self._add_special(special)
 
         bar = ttk.Frame(root, padding=(8, 0))
         bar.pack(fill="x")
@@ -133,8 +139,8 @@ class App:
         except tk.TclError:
             return None
 
-    def _spinbox(self, parent, var, hi):
-        """Typable 1..hi spinbox: digits only, values over hi snap to hi, blank/0 snaps to 1 on leave."""
+    def _spinbox(self, parent, var, hi, lo=1):
+        """Typable lo..hi spinbox: digits only, values over hi snap to hi, blank/under lo snaps to lo on leave."""
         def cap(*_):
             v = self._int(var)
             if v is not None and v > hi:
@@ -142,11 +148,11 @@ class App:
 
         def floor(_):
             v = self._int(var)
-            if v is None or v < 1:
-                var.set(1)
+            if v is None or v < lo:
+                var.set(lo)
 
         var.trace_add("write", cap)
-        sb = ttk.Spinbox(parent, from_=1, to=hi, textvariable=var, width=5, validate="key",
+        sb = ttk.Spinbox(parent, from_=lo, to=hi, textvariable=var, width=5, validate="key",
                          validatecommand=(parent.register(lambda p: p == "" or p.isdigit()), "%P"))
         sb.bind("<FocusOut>", floor)
         sb.bind("<Return>", floor)
@@ -183,6 +189,35 @@ class App:
 
         self.subleagues.trace_add("write", show_subleagues)
         show_subleagues()
+
+    def _add_special(self, frame):
+        """Special schedule picker; UCL options only show while UCL is selected."""
+        self.special = tk.StringVar(value="None")
+        ttk.Label(frame, text="special_schedule").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Combobox(frame, textvariable=self.special, values=["None", UCL], state="readonly",
+                     width=24).grid(row=0, column=1, sticky="w")
+
+        ucl = ttk.Frame(frame)
+        ucl.grid(row=1, column=0, columnspan=2, sticky="w")
+        self.ucl_pots = tk.IntVar(value=4)
+        self.ucl_teams = tk.IntVar(value=9)
+        self.ucl_own_pot = tk.BooleanVar(value=True)
+        ttk.Label(ucl, text="pots_to_use").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=2)
+        self._spinbox(ucl, self.ucl_pots, 50).grid(row=0, column=1, sticky="w")
+        ttk.Label(ucl, text="teams_in_each_pot").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=2)
+        self._spinbox(ucl, self.ucl_teams, 50, lo=2).grid(row=1, column=1, sticky="w")
+        ttk.Label(ucl, text="include_own_pot").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Checkbutton(ucl, variable=self.ucl_own_pot).grid(row=2, column=1, sticky="w")
+        self.ucl_start_day = tk.StringVar(value="Wednesday")
+        ttk.Label(ucl, text="start_day_of_week").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Combobox(ucl, textvariable=self.ucl_start_day, values=DAYS, state="readonly",
+                     width=12).grid(row=3, column=1, sticky="w")
+
+        def show_ucl(*_):
+            ucl.grid() if self.special.get() == UCL else ucl.grid_remove()
+
+        self.special.trace_add("write", show_ucl)
+        show_ucl()
 
     def _resize_divisions(self, i):
         teams = self.div_teams[i]
@@ -257,6 +292,17 @@ class App:
         threading.Thread(target=work, daemon=True).start()
 
     def generate(self):
+        if self.special.get() == UCL:
+            args = (self._int(self.ucl_pots) or 1, max(self._int(self.ucl_teams) or 0, 2), self.ucl_own_pot.get(),
+                    self.ucl_start_day.get())
+
+            def ucl_action():
+                self.sch = None
+                run_ucl(*args)
+
+            self.run(ucl_action)
+            return
+
         settings = self.collect_settings()
         debug = self.debug.get()
 
