@@ -7,3 +7,4 @@ run.bat
 gui.bat
 *.ini
 *.lsdl
+/src/special_schedules/*.txt

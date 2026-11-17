@@ -1,4 +1,6 @@
+import os
 import random
+import re
 
 def generate_random_ucl_schedule(num_pots=4, teams_per_pot=6, play_own_pot=False):
     total_teams = num_pots * teams_per_pot
@@ -57,16 +59,6 @@ def generate_random_ucl_schedule(num_pots=4, teams_per_pot=6, play_own_pot=False
                 schedule[team_b_away].append(f"vs Team {team_a} (HOME)")
 
     return schedule
-
-# Run the generator (configurable inputs here)
-pots_to_use = 4
-teams_in_each_pot = 9
-include_own_pot = True  # Set to True to play your own pot (adds 2 matches)
-
-# Calculate expected matches based on settings
-matches_per_team = ((pots_to_use - 1) * 2) + (2 if include_own_pot else 0)
-
-import re
 
 def export_to_xml_hybrid_repair(team_schedules, target_days):
     unique_matches = []
@@ -167,24 +159,29 @@ def export_to_xml_hybrid_repair(team_schedules, target_days):
             
     return "\n".join(xml_lines)
 
-attempts = 0
-while True:
-    attempts += 1
-    team_schedules = generate_random_ucl_schedule(
-        num_pots=pots_to_use,
-        teams_per_pot=teams_in_each_pot,
-        play_own_pot=include_own_pot
-    )
-    xml_output = export_to_xml_hybrid_repair(team_schedules, target_days=matches_per_team)
-    if xml_output is not None:
-        break
-    print(f"Attempt {attempts} failed to fit in {matches_per_team} matchdays. Retrying...")
+def run(pots_to_use=4, teams_in_each_pot=9, include_own_pot=True):
+    # Calculate expected matches based on settings (own pot adds 2 matches)
+    matches_per_team = ((pots_to_use - 1) * 2) + (2 if include_own_pot else 0)
 
-import os
+    attempts = 0
+    while True:
+        attempts += 1
+        team_schedules = generate_random_ucl_schedule(
+            num_pots=pots_to_use,
+            teams_per_pot=teams_in_each_pot,
+            play_own_pot=include_own_pot
+        )
+        xml_output = export_to_xml_hybrid_repair(team_schedules, target_days=matches_per_team)
+        if xml_output is not None:
+            break
+        print(f"Attempt {attempts} failed to fit in {matches_per_team} matchdays. Retrying...")
 
-output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ucl_output.txt")
-with open(output_path, "w") as f:
-    f.write(xml_output + "\n")
+    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ucl_output.txt")
+    with open(output_path, "w") as f:
+        f.write(xml_output + "\n")
 
-print(f"Schedule written to {output_path}")
-print(f"Process completed in {attempts} attempts.")
+    print(f"Schedule written to {output_path}")
+    print(f"Process completed in {attempts} attempts.")
+
+if __name__ == "__main__":
+    run()
