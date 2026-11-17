@@ -1,6 +1,9 @@
 import os
 import random
 import re
+from datetime import datetime
+
+from elements.day import Day
 
 def generate_random_ucl_schedule(num_pots=4, teams_per_pot=6, play_own_pot=False):
     total_teams = num_pots * teams_per_pot
@@ -153,13 +156,13 @@ def export_to_xml_hybrid_repair(team_schedules, target_days):
     xml_lines = []
     for d in range(1, total_days + 1):
         if len(days[d]) > 0:
-            xml_lines.append(f"\n<!-- MATCHDAY {d} -->")
+            xml_lines.append("")
             for home, away in days[d]:
                 xml_lines.append(f'<GAME day="{d}" time="1900" away="{away}" home="{home}" type="0"/>')
             
     return "\n".join(xml_lines)
 
-def run(pots_to_use=4, teams_in_each_pot=9, include_own_pot=True):
+def run(pots_to_use=4, teams_in_each_pot=9, include_own_pot=True, start_day_of_week="Wednesday"):
     # Calculate expected matches based on settings (own pot adds 2 matches)
     matches_per_team = ((pots_to_use - 1) * 2) + (2 if include_own_pot else 0)
 
@@ -176,12 +179,21 @@ def run(pots_to_use=4, teams_in_each_pot=9, include_own_pot=True):
             break
         print(f"Attempt {attempts} failed to fit in {matches_per_team} matchdays. Retrying...")
 
-    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ucl_output.txt")
-    with open(output_path, "w") as f:
-        f.write(xml_output + "\n")
+    # Same timestamp format as ootp_schedule_file_writer.write_schedule_file.
+    now = datetime.now()
+    timestamp = "%04d" % now.isocalendar()[0] + now.strftime("%m%d%H%M%S")
+    filename = f"UCL_P{pots_to_use}_T{teams_in_each_pot}_G{matches_per_team}_C_autogen{timestamp}.lsdl"
+    ootp_day = Day.day_code_to_ootp_day_code(Day.string_to_day_code(start_day_of_week))
 
-    print(f"Schedule written to {output_path}")
+    contents = ['<?xml version="1.0" encoding="ISO-8859-1"?>\n',
+                f'<SCHEDULE type="{filename}" inter_league="0" balanced_games="0" '
+                f'games_per_team="{matches_per_team}" start_day_of_week="{ootp_day}" >\n',
+                "<GAMES>\n",
+                xml_output + "\n",
+                "</GAMES>\n",
+                "</SCHEDULE>\n"]
+    with open(os.path.join(".", filename), "w", encoding="iso-8859-1", newline="\n") as f:
+        f.write("".join(contents))
+
+    print(filename)
     print(f"Process completed in {attempts} attempts.")
-
-if __name__ == "__main__":
-    run()

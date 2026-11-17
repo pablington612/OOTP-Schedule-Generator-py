@@ -208,6 +208,10 @@ class App:
         self._spinbox(ucl, self.ucl_teams, 50, lo=2).grid(row=1, column=1, sticky="w")
         ttk.Label(ucl, text="include_own_pot").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=2)
         ttk.Checkbutton(ucl, variable=self.ucl_own_pot).grid(row=2, column=1, sticky="w")
+        self.ucl_start_day = tk.StringVar(value="Wednesday")
+        ttk.Label(ucl, text="start_day_of_week").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Combobox(ucl, textvariable=self.ucl_start_day, values=DAYS, state="readonly",
+                     width=12).grid(row=3, column=1, sticky="w")
 
         def show_ucl(*_):
             ucl.grid() if self.special.get() == UCL else ucl.grid_remove()
@@ -289,7 +293,8 @@ class App:
 
     def generate(self):
         if self.special.get() == UCL:
-            args = (self._int(self.ucl_pots) or 1, max(self._int(self.ucl_teams) or 0, 2), self.ucl_own_pot.get())
+            args = (self._int(self.ucl_pots) or 1, max(self._int(self.ucl_teams) or 0, 2), self.ucl_own_pot.get(),
+                    self.ucl_start_day.get())
 
             def ucl_action():
                 self.sch = None
