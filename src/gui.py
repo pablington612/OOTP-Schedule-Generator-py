@@ -160,8 +160,7 @@ class App:
         status.pack(side="bottom", fill="x")
         self.status = tk.StringVar(value="Ready")
         ttk.Label(status, textvariable=self.status).pack(side="left")
-        self.progress = ttk.Progressbar(status, mode="indeterminate", length=160)
-        self.progress.pack(side="right")
+        self.progress = ttk.Progressbar(status, mode="indeterminate", length=160)  # packed only while busy
 
         paned = ttk.PanedWindow(root, orient="vertical")
         paned.pack(fill="both", expand=True, padx=PAD, pady=(PAD, 0))
@@ -521,10 +520,12 @@ class App:
             b.config(state="normal" if ok else "disabled")
         self.grid_btn.config(state="normal" if have else "disabled")
         if busy:
+            self.progress.pack(side="right")
             self.progress.start(10)
             self.status.set("Working...")
         else:
             self.progress.stop()
+            self.progress.pack_forget()
             if status:
                 self.status.set(status)
 
