@@ -19,34 +19,45 @@ UCL = "UCL Style League Phase"
 
 DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-# (section, key, kind, default); kind is "bool", "text", "day", or "days".
+TABS = {
+    "general": "General",
+    "schedule": "Schedule",
+    "divisional-series": "Divisional Series",
+    "subleague-series": "Subleague Series",
+    "interleague-series": "Interleague Series",
+    "break": "Breaks",
+    "time": "Game Times",
+}
+
+# (section, key, label, kind, default); section/key are the setting names Scheduler reads,
+# label is the text shown; kind is "bool", "text", "day", or "days".
 FIELDS = [
-    ("general", "interleague", "bool", False),
-    ("general", "balanced", "bool", True),
-    ("schedule", "divisional_games", "text", "60"),
-    ("schedule", "subleague_games", "text", "0"),
-    ("schedule", "interleague_games", "text", "0"),
-    ("schedule", "match_divisions", "bool", False),
-    ("schedule", "match_subleagues", "bool", False),
-    ("schedule", "match_subleagues_by_division", "bool", False),
-    ("divisional-series", "preferred_length", "text", "2"),
-    ("divisional-series", "pool_count", "text", "1"),
-    ("subleague-series", "preferred_length", "text", "2"),
-    ("subleague-series", "pool_count", "text", "1"),
-    ("interleague-series", "preferred_length", "text", "1"),
-    ("interleague-series", "pool_count", "text", "1"),
-    ("break", "break_days", "text", "0"),
-    ("break", "all_star_percentage", "text", "-1"),
-    ("break", "all_star_length", "text", "6"),
-    ("break", "all_star_day_of_week", "day", "none"),
-    ("break", "start_day_of_week", "day", "Saturday"),
-    ("break", "off_days_of_week", "days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]),
-    ("break", "non_off_days_of_week", "days", ["Saturday", "Sunday"]),
-    ("break", "mid_series_breaks", "bool", False),
-    ("time", "first_start", "text", "1800"),
-    ("time", "last_start", "text", "2000"),
-    ("time", "start_offset", "text", "5"),
-    ("time", "simultaneous_games", "text", "2"),
+    ("general", "interleague", "Interleague play", "bool", False),
+    ("general", "balanced", "Balanced schedule", "bool", True),
+    ("schedule", "divisional_games", "Divisional games", "text", "60"),
+    ("schedule", "subleague_games", "Subleague games", "text", "0"),
+    ("schedule", "interleague_games", "Interleague games", "text", "0"),
+    ("schedule", "match_divisions", "Match divisions", "bool", False),
+    ("schedule", "match_subleagues", "Match subleagues", "bool", False),
+    ("schedule", "match_subleagues_by_division", "Match subleagues by division", "bool", False),
+    ("divisional-series", "preferred_length", "Preferred series length", "text", "2"),
+    ("divisional-series", "pool_count", "Pool count", "text", "1"),
+    ("subleague-series", "preferred_length", "Preferred series length", "text", "2"),
+    ("subleague-series", "pool_count", "Pool count", "text", "1"),
+    ("interleague-series", "preferred_length", "Preferred series length", "text", "1"),
+    ("interleague-series", "pool_count", "Pool count", "text", "1"),
+    ("break", "break_days", "Break days", "text", "0"),
+    ("break", "all_star_percentage", "All-Star break at % of season", "text", "-1"),
+    ("break", "all_star_length", "All-Star break length (days)", "text", "6"),
+    ("break", "all_star_day_of_week", "All-Star break day", "day", "none"),
+    ("break", "start_day_of_week", "Season start day", "day", "Saturday"),
+    ("break", "off_days_of_week", "Off days", "days", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]),
+    ("break", "non_off_days_of_week", "Never-off days", "days", ["Saturday", "Sunday"]),
+    ("break", "mid_series_breaks", "Allow mid-series breaks", "bool", False),
+    ("time", "first_start", "Earliest start time", "text", "1800"),
+    ("time", "last_start", "Latest start time", "text", "2000"),
+    ("time", "start_offset", "Start time offset", "text", "5"),
+    ("time", "simultaneous_games", "Simultaneous games", "text", "2"),
 ]
 
 
@@ -76,11 +87,11 @@ class App:
         tabs = ttk.Notebook(root)
         tabs.pack(fill="x", padx=8, pady=8)
         frames = {}
-        for section, key, kind, default in FIELDS:
+        for section, key, label, kind, default in FIELDS:
             if section not in frames:
                 frames[section] = ttk.Frame(tabs, padding=8)
-                tabs.add(frames[section], text=section)
-            self._add_field(frames[section], section, key, kind, default)
+                tabs.add(frames[section], text=TABS[section])
+            self._add_field(frames[section], section, key, label, kind, default)
         self._add_structure(frames["general"])
         special = ttk.Frame(tabs, padding=8)
         tabs.add(special, text="Special Schedules")
@@ -110,9 +121,9 @@ class App:
         self.set_buttons(busy=False)
         self.drain()
 
-    def _add_field(self, frame, section, key, kind, default):
+    def _add_field(self, frame, section, key, label, kind, default):
         row = frame.grid_size()[1]
-        ttk.Label(frame, text=key).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=2)
         if kind == "bool":
             var = tk.BooleanVar(value=default)
             ttk.Checkbutton(frame, variable=var).grid(row=row, column=1, sticky="w")
@@ -193,7 +204,7 @@ class App:
     def _add_special(self, frame):
         """Special schedule picker; UCL options only show while UCL is selected."""
         self.special = tk.StringVar(value="None")
-        ttk.Label(frame, text="special_schedule").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Label(frame, text="Special schedule").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=2)
         ttk.Combobox(frame, textvariable=self.special, values=["None", UCL], state="readonly",
                      width=24).grid(row=0, column=1, sticky="w")
 
@@ -202,14 +213,14 @@ class App:
         self.ucl_pots = tk.IntVar(value=4)
         self.ucl_teams = tk.IntVar(value=9)
         self.ucl_own_pot = tk.BooleanVar(value=True)
-        ttk.Label(ucl, text="pots_to_use").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Label(ucl, text="Pots to use").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=2)
         self._spinbox(ucl, self.ucl_pots, 50).grid(row=0, column=1, sticky="w")
-        ttk.Label(ucl, text="teams_in_each_pot").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Label(ucl, text="Teams in each pot").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=2)
         self._spinbox(ucl, self.ucl_teams, 50, lo=2).grid(row=1, column=1, sticky="w")
-        ttk.Label(ucl, text="include_own_pot").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Label(ucl, text="Include own pot").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=2)
         ttk.Checkbutton(ucl, variable=self.ucl_own_pot).grid(row=2, column=1, sticky="w")
         self.ucl_start_day = tk.StringVar(value="Wednesday")
-        ttk.Label(ucl, text="start_day_of_week").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=2)
+        ttk.Label(ucl, text="Start day").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=2)
         ttk.Combobox(ucl, textvariable=self.ucl_start_day, values=DAYS, state="readonly",
                      width=12).grid(row=3, column=1, sticky="w")
 
