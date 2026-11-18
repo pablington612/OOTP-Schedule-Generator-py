@@ -5,7 +5,7 @@ from elements.day import Day
 from elements.series_type import SeriesType
 
 
-def write_schedule_file(settings, s):
+def write_schedule_file(settings, s, out_dir="."):
     all_games = s.get_all_games()
     # Sort key copied from the original: the day number and start time joined as text, then parsed.
     all_games.sort(key=lambda g: int(str(g.day.number) + str(g.time)))
@@ -36,7 +36,7 @@ def write_schedule_file(settings, s):
 
     filename = prefix + structure + suffix
     # Many divisions overflow Windows' 255-char name / 260-char path limit; fall back to the team count.
-    if len(os.path.abspath(filename)) > 259:
+    if len(os.path.abspath(os.path.join(out_dir, filename))) > 259:
         filename = prefix + total_teams + suffix
 
     allstar_day = -1
@@ -72,6 +72,6 @@ def write_schedule_file(settings, s):
     contents.append("</GAMES>\n")
     contents.append("</SCHEDULE>\n")
 
-    with open(os.path.join(".", filename), "w", encoding="iso-8859-1", newline="\n") as output:
+    with open(os.path.join(out_dir, filename), "w", encoding="iso-8859-1", newline="\n") as output:
         output.write("".join(contents))
     print(filename)

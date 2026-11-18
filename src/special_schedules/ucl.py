@@ -162,7 +162,7 @@ def export_to_xml_hybrid_repair(team_schedules, target_days):
             
     return "\n".join(xml_lines)
 
-def run(pots_to_use=4, teams_in_each_pot=9, include_own_pot=True, start_day_of_week="Wednesday"):
+def run(pots_to_use=4, teams_in_each_pot=9, include_own_pot=True, start_day_of_week="Wednesday", out_dir="."):
     # Calculate expected matches based on settings (own pot adds 2 matches)
     matches_per_team = ((pots_to_use - 1) * 2) + (2 if include_own_pot else 0)
 
@@ -192,7 +192,7 @@ def run(pots_to_use=4, teams_in_each_pot=9, include_own_pot=True, start_day_of_w
                 xml_output + "\n",
                 "</GAMES>\n",
                 "</SCHEDULE>\n"]
-    with open(os.path.join(".", filename), "w", encoding="iso-8859-1", newline="\n") as f:
+    with open(os.path.join(out_dir, filename), "w", encoding="iso-8859-1", newline="\n") as f:
         f.write("".join(contents))
 
     print(filename)
